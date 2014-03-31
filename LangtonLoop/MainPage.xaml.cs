@@ -110,14 +110,14 @@ namespace LangtonLoop
 
             while (isRunning_)
             {
-                langton_loops_.Update();
+                await Task.Run(() => langton_loops_.Update());
                 UpdateBitmap(langton_loops_.Lives);
 
                 count++;
                 TimeSpan duration = DateTimeOffset.Now.Subtract(startTime);
                 this.textCycleTime.Text = string.Format("{0:0.000}秒", duration.TotalMilliseconds / count / 1000.0);
 
-                await Task.Yield(); //画面更新の機会を与える (お行儀悪っ!!)
+//                await Task.Yield(); //画面更新の機会を与える
             }
 
             isStopped_ = true;
