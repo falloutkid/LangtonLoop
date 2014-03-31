@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace LangtonLoop
 {
-    public class LangtonLoops
+    public class LangtonLoops : System.ComponentModel.INotifyPropertyChanged
     {
         // 世界のサイズ(正方形の一辺)
         int size_;
@@ -38,6 +38,9 @@ namespace LangtonLoop
         int[,] east_life_;
         int[,] south_life_;
         int[,] west_life_;
+
+        public event System.ComponentModel.PropertyChangedEventHandler PropertyChanged;
+
 
 
         public LangtonLoops()
@@ -91,10 +94,43 @@ namespace LangtonLoop
             isRuleLoaded_ = true;
         }
 
+        private bool isRunning_;
+        private bool isStopped_ = true;
+
+        public async Task RunLoopsAsync()
+        {
+            isRunning_ = true;
+            isStopped_ = false;
+
+            while (!isRuleLoaded_)
+                await Task.Delay(100);
+
+            await Task.Run(() =>
+            {
+                while (isRunning_)
+                {
+                    Update();
+
+                    if (this.PropertyChanged != null)
+                        this.PropertyChanged(this, new System.ComponentModel.PropertyChangedEventArgs("Lives"));
+                }
+            });
+
+            isStopped_ = true;
+        }
+
+        public async Task StopAsync()
+        {
+            isRunning_ = false;
+
+            while (!isStopped_)
+                await Task.Delay(10);
+        }
+
         /// <summary>
         /// アップデート用の関数
         /// </summary>
-        public void Update()
+        private void Update()
         {
             while (!isRuleLoaded_)
                 Task.Delay(100).GetAwaiter().GetResult();

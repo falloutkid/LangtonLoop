@@ -37,10 +37,20 @@ namespace LangtonLoop
         {
             this.InitializeComponent();
 
+            this_dispatcher_ = Window.Current.Dispatcher;
+
             InitializeCellColors();
             PrepareBitmap();
             InitializeLangtonLoops();
         }
+
+        Windows.UI.Core.CoreDispatcher this_dispatcher_;
+        /*
+        protected override void LoadState(Object navigationParameter, Dictionary<String, Object> pageState)
+        {
+            this_dispatcher_ = Window.Current.Dispatcher;
+        }
+         * */
 
         private void InitializeCellColors()
         {
@@ -64,6 +74,8 @@ namespace LangtonLoop
         {
             langton_loops_ = new LangtonLoops(SIZE);
             UpdateBitmap(langton_loops_.Lives);
+
+            langton_loops_.PropertyChanged += LangtonsLoops_PropertyChanged;
         }
 
         private void UpdateBitmap(int[,] lives)
@@ -71,69 +83,22 @@ namespace LangtonLoop
             bitmap_.ForEach((x, y) => cell_colors_[lives[y, x]]);
         }
 
-
-        /*
-        /// <summary>
-        /// このページには、移動中に渡されるコンテンツを設定します。前のセッションからページを
-        /// 再作成する場合は、保存状態も指定されます。
-        /// </summary>
-        /// <param name="navigationParameter">このページが最初に要求されたときに
-        /// <see cref="Frame.Navigate(Type, Object)"/> に渡されたパラメーター値。
-        /// </param>
-        /// <param name="pageState">前のセッションでこのページによって保存された状態の
-        /// ディクショナリ。ページに初めてアクセスするとき、状態は null になります。</param>
-        protected override void LoadState(Object navigationParameter, Dictionary<String, Object> pageState)
-        {
-        }
-
-        /// <summary>
-        /// アプリケーションが中断される場合、またはページがナビゲーション キャッシュから破棄される場合、
-        /// このページに関連付けられた状態を保存します。値は、
-        /// <see cref="SuspensionManager.SessionState"/> のシリアル化の要件に準拠する必要があります。
-        /// </summary>
-        /// <param name="pageState">シリアル化可能な状態で作成される空のディクショナリ。</param>
-        protected override void SaveState(Dictionary<String, Object> pageState)
-        {
-        }
-        */
-
-        private bool isRunning_;
-        private bool isStopped_ = true;
-
+        DateTimeOffset start_time_;
+        int step_count_;
+        int draw_count_;
         private async Task RunLoops()
         {
-            isRunning_ = true;
-            isStopped_ = false;
+            step_count_ = 0;
+            draw_count_ = 0;
 
-            DateTimeOffset startTime = DateTimeOffset.Now;
-            int count = 0;
+            start_time_ = DateTimeOffset.Now;
 
-            while (isRunning_)
-            {
-                await Task.Run(() => langton_loops_.Update());
-                UpdateBitmap(langton_loops_.Lives);
-
-                count++;
-                TimeSpan duration = DateTimeOffset.Now.Subtract(startTime);
-                this.textCycleTime.Text = string.Format("{0:0.000}秒", duration.TotalMilliseconds / count / 1000.0);
-
-//                await Task.Yield(); //画面更新の機会を与える
-            }
-
-            isStopped_ = true;
-        }
-
-        private async Task Stop()
-        {
-            isRunning_ = false;
-
-            while (!isStopped_)
-                await Task.Delay(100);
+            await langton_loops_.RunLoopsAsync();
         }
 
         private async void ResetButton_Tapped(object sender, RoutedEventArgs e)
         {
-            await Stop();
+            await langton_loops_.StopAsync();
             InitializeLangtonLoops();
         }
 
@@ -154,7 +119,38 @@ namespace LangtonLoop
             }
             else
             {
-                await Stop();
+                await langton_loops_.StopAsync();
+            }
+        }
+
+        bool is_updating_;
+
+        async void LangtonsLoops_PropertyChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == "Lives")
+            {
+                step_count_++;
+
+                if (is_updating_)
+                    return;
+
+                is_updating_ = true;
+
+                await this_dispatcher_.RunAsync(
+                    Windows.UI.Core.CoreDispatcherPriority.Normal,
+                    () =>
+                    {
+                        UpdateBitmap(langton_loops_.Lives);
+
+                        draw_count_++;
+                        TimeSpan duration = DateTimeOffset.Now.Subtract(start_time_);
+                        this.textCycleTime.Text = string.Format("{0:0.000}秒", duration.TotalMilliseconds / step_count_ / 1000.0);
+                        int drawRate = (int)(draw_count_ * 100.0 / step_count_);
+                        this.textDrawRate.Text = string.Format("{0}% ({1}/{2})", drawRate, draw_count_, step_count_);
+                    }
+                  );
+
+                is_updating_ = false;
             }
         }
     }
