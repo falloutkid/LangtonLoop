@@ -136,7 +136,7 @@ namespace LangtonLoop
                 Task.Delay(100).GetAwaiter().GetResult();
 
             // 隣を見る (観測し終わるまで lives_ を変更してはいけない)
-            for (int r = 1; r < size_ - 1; r++)
+            Parallel.For ( 1,  size_ - 1, (r)=>
             {
                 for (int c = 1; c < size_ - 1; c++)
                 {
@@ -145,17 +145,17 @@ namespace LangtonLoop
                     south_life_[r, c] = lives_[r + 1, c];
                     west_life_[r, c] = lives_[r, c - 1];
                 }
-            }
+            });
 
             // 次ステップの状態を計算して書き換える
-            for (int r = 1; r < size_ - 1; r++)
+            Parallel.For(1, size_ - 1, (r) =>
             {
                 for (int c = 1; c < size_ - 1; c++)
                 {
                     InputLangtonData data = new InputLangtonData(lives_[r, c], north_life_[r, c], east_life_[r, c], south_life_[r, c], west_life_[r, c]);
                     lives_[r, c] = rule_.Next(lives_[r, c], north_life_[r, c], east_life_[r, c], south_life_[r, c], west_life_[r, c]);
                 }
-            }
+            });
         }
     }
 }
