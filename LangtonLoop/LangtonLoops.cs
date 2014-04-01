@@ -13,6 +13,7 @@ namespace LangtonLoop
 
         // 世界(intの2次元配列)
         int[,] lives_;
+        int[,] next_lives_;
         public int[,] Lives { get { return lives_; } }
 
         // セル・オートマトンの規則
@@ -33,12 +34,6 @@ namespace LangtonLoop
             {0,2,2,2,2,2,2,2,2,2,2,2,2,2,0},
                                       };
 
-        // 観測結果(各方向の隣のセルの値)
-        int[,] north_life_;
-        int[,] east_life_;
-        int[,] south_life_;
-        int[,] west_life_;
-
         public event System.ComponentModel.PropertyChangedEventHandler PropertyChanged;
 
 
@@ -58,13 +53,13 @@ namespace LangtonLoop
             size_ = size;
             LoadRule();
             CreateLives();
-            PrepareWatchingArray();
         }
 
         // Lives配列を作成し、初期状態を設定する
         private void CreateLives()
         {
             lives_ = new int[size_, size_];
+            next_lives_ = new int[size_, size_];
 
             int defaultRow = (size_ - DefaultLives.GetLength(0)) / 2;
             int defaultColmn = (size_ - DefaultLives.GetLength(1)) / 2;
@@ -77,15 +72,6 @@ namespace LangtonLoop
                     lives_[r, c] = DefaultLives[r0, c0];
                 }
             }
-        }
-
-        // 観測用の配列を生成
-        private void PrepareWatchingArray()
-        {
-            north_life_ = new int[size_, size_];
-            east_life_ = new int[size_, size_];
-            south_life_ = new int[size_, size_];
-            west_life_ = new int[size_, size_];
         }
 
         private async void LoadRule()
@@ -139,23 +125,14 @@ namespace LangtonLoop
             Parallel.For ( 1,  size_ - 1, (r)=>
             {
                 for (int c = 1; c < size_ - 1; c++)
-                {
-                    north_life_[r, c] = lives_[r - 1, c];
-                    east_life_[r, c] = lives_[r, c + 1];
-                    south_life_[r, c] = lives_[r + 1, c];
-                    west_life_[r, c] = lives_[r, c - 1];
+                {;
+                    next_lives_[r, c] = rule_.Next(lives_[r, c], lives_[r - 1, c], lives_[r, c + 1], lives_[r + 1, c], lives_[r, c - 1]);
                 }
             });
 
-            // 次ステップの状態を計算して書き換える
-            Parallel.For(1, size_ - 1, (r) =>
-            {
-                for (int c = 1; c < size_ - 1; c++)
-                {
-                    InputLangtonData data = new InputLangtonData(lives_[r, c], north_life_[r, c], east_life_[r, c], south_life_[r, c], west_life_[r, c]);
-                    lives_[r, c] = rule_.Next(lives_[r, c], north_life_[r, c], east_life_[r, c], south_life_[r, c], west_life_[r, c]);
-                }
-            });
+            int[,] temporary_buffer = lives_;
+            lives_ = next_lives_;
+            next_lives_ = temporary_buffer;
         }
     }
 }
